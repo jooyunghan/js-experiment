@@ -1,4 +1,4 @@
-const {More, Done} = require("./trampoline");
+const { More, Done } = require("./trampoline");
 
 function fib(n) {
   if (n <= 1) return new Done(n);
@@ -38,3 +38,12 @@ function trampolineEven(n) {
 
 // // console.log(recursiveEven(100000));
 console.log(trampolineEven(100000).runT());
+
+const print = s => process.stdout.write(s);
+const println = s => console.log(s);
+
+const hello = new More(() => new Done(print("Hello, "))).map(() =>
+  println("world!")
+);
+
+hello.zip(hello).runT();
