@@ -3,16 +3,10 @@ class State {
     this.runS = runS;
   }
   map(f) {
-    return new State(s => {
-      const [a, s1] = this.runS(s).runT();
-      return new Done([f(a), s1]);
-    });
+    return new State(s => new More(() => this.runS(s).map(([a,s1]) => [f(a), s1])));
   }
   flatMap(f) {
-    return new State(s => {
-      const [a, s1] = this.runS(s).runT();
-      return new More(() => f(a).runS(s1));
-    });
+    return new State(s => new More(() => this.runS(s).flatMap(([a, s1]) => new More(() => f(a).runS(s1)))));
   }
 }
 
@@ -52,6 +46,12 @@ class Trampoline {
       cur = cur.k();
     }
     return cur.v;
+  }
+  map(f) {
+    return new More(() => new Done(f(this.runT())));
+  }
+  flatMap(f) {
+    return new More(() => f(this.runT()));
   }
 }
 
