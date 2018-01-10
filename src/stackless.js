@@ -45,4 +45,58 @@ function range(start, endExclusive) {
   return result;
 }
 
-console.log(zipIndex(range(0, 5000)))
+class Trampoline {
+  runT() {
+    let cur = this;
+    while (cur instanceof More) {
+      cur = cur.k();
+    }
+    return cur.v;
+  }
+}
+
+class More extends Trampoline {
+  constructor(k) {
+    super();
+    this.k = k;
+  }
+}
+
+class Done extends Trampoline {
+  constructor(v) {
+    super();
+    this.v = v;
+  }
+}
+
+function recursiveEven(n) {
+  function even(n) {
+    if (n === 0) return true;
+    return odd(n - 1);
+  }
+
+  function odd(n) {
+    if (n === 0) return false;
+    return even(n - 1);
+  }
+
+  return even(n);
+}
+
+function trampolineEven(n) {
+  function even(n) {
+    if (n === 0) return new Done(true);
+    return new More(() => odd(n - 1));
+  }
+
+  function odd(n) {
+    if (n === 0) return new Done(false);
+    return new More(() => even(n - 1));
+  }
+  return even(n);
+}
+
+// console.log(recursiveEven(100000));
+console.log(trampolineEven(100000).runT());
+
+//console.log(zipIndex(range(0, 5000)))
