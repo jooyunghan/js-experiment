@@ -1,3 +1,5 @@
+const Unit = Object.create(null);
+
 class State {
   constructor(runS) {
     this.runS = runS;
@@ -15,7 +17,7 @@ function getState() {
 }
 
 function setState(s) {
-  return new State(() => new Done([{}, s]));
+  return new State(() => new Done([Unit, s]));
 }
 
 function pureState(a) {
@@ -137,6 +139,5 @@ function trampolineEven(n) {
 }
 
 // console.log(recursiveEven(100000));
-// console.log(trampolineEven(100000).runT());
-
+console.log(trampolineEven(100000).runT());
 console.log(zipIndex(range(0, 10000)))
