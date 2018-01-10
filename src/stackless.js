@@ -28,4 +28,21 @@ function pureState(a) {
   return new State(s => [a, s]);
 }
 
+function zipIndex(as) {
+  return as.reduce((acc, a) => {
+    return acc.flatMap(xs => getState().flatMap(n => setState(n + 1).map(() => xs.concat({
+      value: n,
+      index: n
+    }))))
+  }, pureState([])).runS(0)[0]
+}
 
+function range(start, endExclusive) {
+  const result = [];
+  for (let i = start; i < endExclusive; i++) {
+    result.push(i);
+  }
+  return result;
+}
+
+console.log(zipIndex(range(0, 5000)))
