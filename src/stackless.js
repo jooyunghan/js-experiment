@@ -3,7 +3,7 @@ class State {
     this.runS = runS;
   }
   map(f) {
-    return new State(s => new More(() => this.runS(s).map(([a,s1]) => [f(a), s1])));
+    return new State(s => new More(() => this.runS(s).map(([a, s1]) => [f(a), s1])));
   }
   flatMap(f) {
     return new State(s => new More(() => this.runS(s).flatMap(([a, s1]) => new More(() => f(a).runS(s1)))));
@@ -42,16 +42,56 @@ function range(start, endExclusive) {
 class Trampoline {
   runT() {
     let cur = this;
-    while (cur instanceof More) {
-      cur = cur.k();
+    while (true) {
+      const {
+        right,
+        left
+      } = cur.resume();
+      if (right) return right;
+      cur = left();
     }
-    return cur.v;
+  }
+  resume() {
+    let cur = this;
+    while (true) {
+      if (cur instanceof Done) {
+        return {
+          right: cur.v
+        };
+      } else if (cur instanceof More) {
+        return {
+          left: cur.k
+        };
+      } else {
+        if (cur.sub instanceof Done) {
+          cur = cur.f(cur.sub.v);
+        } else if (cur.sub instanceof More) {
+          return {
+            left: () => cur.sub.k().flatMap(cur.f)
+          };
+        } else {
+          cur = cur.sub.sub.flatMap(x => cur.sub.f(x).flatMap(cur.f));
+        }
+      }
+    }
   }
   map(f) {
-    return new More(() => new Done(f(this.runT())));
+    return this.flatMap(x => new Done(f(x)));
   }
   flatMap(f) {
-    return new More(() => f(this.runT()));
+    if (this instanceof FlatMap) {
+      return new FlatMap(this.sub, (x) => this.f(x).flatMap(f));
+    } else {
+      return new FlatMap(this, f);
+    }
+  }
+}
+
+class FlatMap extends Trampoline {
+  constructor(sub, f) {
+    super();
+    this.sub = sub;
+    this.f = f;
   }
 }
 
