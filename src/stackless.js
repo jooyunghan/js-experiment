@@ -1,3 +1,5 @@
+const { More, Done } = require("./trampoline");
+
 const Unit = Object.create(null);
 
 class State {
@@ -5,10 +7,17 @@ class State {
     this.runS = runS;
   }
   map(f) {
-    return new State(s => new More(() => this.runS(s).map(([a, s1]) => [f(a), s1])));
+    return new State(
+      s => new More(() => this.runS(s).map(([a, s1]) => [f(a), s1]))
+    );
   }
   flatMap(f) {
-    return new State(s => new More(() => this.runS(s).flatMap(([a, s1]) => new More(() => f(a).runS(s1)))));
+    return new State(
+      s =>
+        new More(() =>
+          this.runS(s).flatMap(([a, s1]) => new More(() => f(a).runS(s1)))
+        )
+    );
   }
 }
 
@@ -25,12 +34,21 @@ function pureState(a) {
 }
 
 function zipIndex(as) {
-  return as.reduce((acc, a) => {
-    return acc.flatMap(xs => getState().flatMap(n => setState(n + 1).map(() => xs.concat({
-      value: n,
-      index: n
-    }))))
-  }, pureState([])).runS(0).runT()[0]
+  return as
+    .reduce((acc, a) => {
+      return acc.flatMap(xs =>
+        getState().flatMap(n =>
+          setState(n + 1).map(() =>
+            xs.concat({
+              value: n,
+              index: n,
+            })
+          )
+        )
+      );
+    }, pureState([]))
+    .runS(0)
+    .runT()[0];
 }
 
 function range(start, endExclusive) {
@@ -39,76 +57,6 @@ function range(start, endExclusive) {
     result.push(i);
   }
   return result;
-}
-
-class Trampoline {
-  runT() {
-    let cur = this;
-    while (true) {
-      const {
-        right,
-        left
-      } = cur.resume();
-      if (right) return right;
-      cur = left();
-    }
-  }
-  resume() {
-    let cur = this;
-    while (true) {
-      if (cur instanceof Done) {
-        return {
-          right: cur.v
-        };
-      } else if (cur instanceof More) {
-        return {
-          left: cur.k
-        };
-      } else {
-        if (cur.sub instanceof Done) {
-          cur = cur.f(cur.sub.v);
-        } else if (cur.sub instanceof More) {
-          return {
-            left: () => cur.sub.k().flatMap(cur.f)
-          };
-        } else {
-          cur = cur.sub.sub.flatMap(x => cur.sub.f(x).flatMap(cur.f));
-        }
-      }
-    }
-  }
-  map(f) {
-    return this.flatMap(x => new Done(f(x)));
-  }
-  flatMap(f) {
-    if (this instanceof FlatMap) {
-      return new FlatMap(this.sub, (x) => this.f(x).flatMap(f));
-    } else {
-      return new FlatMap(this, f);
-    }
-  }
-}
-
-class FlatMap extends Trampoline {
-  constructor(sub, f) {
-    super();
-    this.sub = sub;
-    this.f = f;
-  }
-}
-
-class More extends Trampoline {
-  constructor(k) {
-    super();
-    this.k = k;
-  }
-}
-
-class Done extends Trampoline {
-  constructor(v) {
-    super();
-    this.v = v;
-  }
 }
 
 function recursiveEven(n) {
@@ -138,6 +86,6 @@ function trampolineEven(n) {
   return even(n);
 }
 
-// console.log(recursiveEven(100000));
-console.log(trampolineEven(100000).runT());
-console.log(zipIndex(range(0, 10000)))
+// // console.log(recursiveEven(100000));
+// console.log(trampolineEven(100000).runT());
+console.log(zipIndex(range(0, 10000)));
