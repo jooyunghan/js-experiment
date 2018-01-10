@@ -4,28 +4,28 @@ class State {
   }
   map(f) {
     return new State(s => {
-      const [a, s1] = this.runS(s);
-      return [f(a), s1];
+      const [a, s1] = this.runS(s).runT();
+      return new Done([f(a), s1]);
     });
   }
   flatMap(f) {
     return new State(s => {
-      const [a, s1] = this.runS(s);
-      return f(a).runS(s1);
+      const [a, s1] = this.runS(s).runT();
+      return new More(() => f(a).runS(s1));
     });
   }
 }
 
 function getState() {
-  return new State(s => [s, s]);
+  return new State(s => new Done([s, s]));
 }
 
 function setState(s) {
-  return new State(() => [{}, s]);
+  return new State(() => new Done([{}, s]));
 }
 
 function pureState(a) {
-  return new State(s => [a, s]);
+  return new State(s => new Done([a, s]));
 }
 
 function zipIndex(as) {
@@ -34,7 +34,7 @@ function zipIndex(as) {
       value: n,
       index: n
     }))))
-  }, pureState([])).runS(0)[0]
+  }, pureState([])).runS(0).runT()[0]
 }
 
 function range(start, endExclusive) {
@@ -97,6 +97,6 @@ function trampolineEven(n) {
 }
 
 // console.log(recursiveEven(100000));
-console.log(trampolineEven(100000).runT());
+// console.log(trampolineEven(100000).runT());
 
-//console.log(zipIndex(range(0, 5000)))
+console.log(zipIndex(range(0, 10000)))
