@@ -1,6 +1,6 @@
 const { More, Done } = require("./trampoline");
-
-const Unit = Object.create(null);
+const Unit = require("./unit");
+const range = require("./range");
 
 class State {
   constructor(runS) {
@@ -51,12 +51,5 @@ function zipIndex(as) {
     .runT()[0];
 }
 
-function range(start, endExclusive) {
-  const result = [];
-  for (let i = start; i < endExclusive; i++) {
-    result.push(i);
-  }
-  return result;
-}
 
 console.log(zipIndex(range(0, 10000)));
