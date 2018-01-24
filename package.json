@@ -9,6 +9,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "immutable": "^3.8.2",
     "pegjs": "^0.10.0"
   }
 }

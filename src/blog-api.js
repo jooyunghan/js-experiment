@@ -1,9 +1,9 @@
-const { dataFetch } = require("./fetch");
+const { Request } = require("./fetch");
 
-const getPostIds = () => dataFetch({ type: "getPostIds" });
-const getPostViews = id => dataFetch({ type: "getPostViews", id });
-const getPostContent = id => dataFetch({ type: "getPostContent", id });
-const getPostInfo = id => dataFetch({ type: "getPostInfo", id });
+const getPostIds = () => Request({ type: "getPostIds" });
+const getPostViews = id => Request({ type: "getPostViews", id });
+const getPostContent = id => Request({ type: "getPostContent", id });
+const getPostInfo = id => Request({ type: "getPostInfo", id });
 
 module.exports = {
   getPostIds,

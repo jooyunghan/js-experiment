@@ -1,67 +1,70 @@
-function* dataFetch(request) {
-  let box = [];
-  let br = { request, box };
-  yield Blocked([br]);
-  return box[0];
+function Request(request) {
+  return Object.setPrototypeOf(request, Request.prototype);
+}
+
+function step(stack, result) {
+  while (stack.length > 0) {
+    const i = stack.pop();
+    if (i instanceof Request) {
+      let box = [];
+      return {
+        blocked: [{ request: i, box }],
+        next: () => step(stack, box[0]),
+      };
+    }
+    const { value, done } = i.next(result);
+    if (done) {
+      result = value;
+    } else if (typeof value.next === "function") {
+      stack.push(i);
+      stack.push(value);
+    } else if (value instanceof Request) {
+      stack.push(i);
+      let box = [];
+      return {
+        blocked: [{ request: value, box }],
+        next: () => step(stack, box[0]),
+      };
+    } else if (value instanceof Array) {
+      stack.push(i);
+      let result2 = [];
+      for (const v of value) {
+        result2.push(step([v]));
+      }
+      if (result2.every(r => "done" in r)) {
+        result = result2.map(r => r.done);
+      } else {
+        const blocked = result2
+          .filter(r => "blocked" in r)
+          .reduce((a, r) => a.concat(r.blocked), []);
+        return {
+          blocked,
+          next: function next() {
+            for (let i in result2) {
+              if ("blocked" in result2[i]) {
+                result2[i] = result2[i].next();
+              }
+            }
+            if (result2.every(r => "done" in r)) {
+              return step(stack, result2.map(r => r.done));
+            } else {
+              const blocked = result2
+                .filter(r => "blocked" in r)
+                .reduce((a, r) => a.concat(r.blocked), []);
+              return {
+                blocked,
+                next: next,
+              };
+            }
+          },
+        };
+      }
+    }
+  }
+  return { done: result };
 }
 
 function runFetch(g, fetch) {
-  function step(stack, result) {
-    while (stack.length > 0) {
-      const i = stack.pop();
-      const { value, done } = i.next(result);
-      if (done) {
-        result = value;
-      } else if (typeof value.next === "function") {
-        stack.push(i);
-        stack.push(value);
-      } else if (value instanceof Blocked) {
-        stack.push(i);
-        return {
-          blocked: value.requests,
-          next: () => step(stack),
-        };
-      } else if (value instanceof Array) {
-        stack.push(i);
-        let result2 = [];
-        for (const v of value) {
-          result2.push(step([v]));
-        }
-        if (result2.every(r => "done" in r)) {
-          result = result2.map(r => r.done);
-        } else {
-          const blocked = result2
-            .filter(r => "blocked" in r)
-            .reduce((a, r) => a.concat(r.blocked), []);
-          return {
-            blocked,
-            next: function next() {
-              for (let i in result2) {
-                if ("blocked" in result2[i]) {
-                  result2[i] = result2[i].next();
-                }
-              }
-              if (result2.every(r => "done" in r)) {
-                return step(stack, result2.map(r => r.done));
-              } else {
-                const blocked = result2
-                  .filter(r => "blocked" in r)
-                  .reduce((a, r) => a.concat(r.blocked), []);
-                return {
-                  blocked,
-                  next: next,
-                };
-              }
-            },
-          };
-        }
-      }
-    }
-    return {
-      done: result,
-    };
-  }
-
   let round = 1;
 
   function go(cont) {
@@ -79,11 +82,7 @@ function runFetch(g, fetch) {
   return go(() => step([g()]));
 }
 
-function Blocked(requests) {
-  return Object.assign(Object.create(Blocked.prototype), { requests });
-}
-
 module.exports = {
   runFetch,
-  dataFetch
-}
+  Request,
+};
