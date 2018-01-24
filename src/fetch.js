@@ -1,16 +1,40 @@
+const HashMap = require("./HashMap");
+
 function Request(request) {
   return Object.setPrototypeOf(request, Request.prototype);
 }
 
-function step(stack, result) {
+function handleRequest(cache, stack, request) {
+  if (cache.has(request)) {
+    const box = cache.get(request);
+    if (box.length > 0) {
+      return { done: box[0] };
+    } else {
+      return {
+        blocked: [],
+        next: () => step(cache, stack, box[0]),
+      };
+    }
+  }
+  const box = [];
+  cache.put(request, box);
+  return {
+    blocked: [{ request, box }],
+    next: () => step(cache, stack, box[0]),
+  };
+}
+
+function step(cache, stack, result) {
   while (stack.length > 0) {
     const i = stack.pop();
     if (i instanceof Request) {
-      let box = [];
-      return {
-        blocked: [{ request: i, box }],
-        next: () => step(stack, box[0]),
-      };
+      const r = handleRequest(cache, stack, i);
+      if ("done" in r) {
+        result = r.done;
+        continue;
+      } else {
+        return r;
+      }
     }
     const { value, done } = i.next(result);
     if (done) {
@@ -20,16 +44,17 @@ function step(stack, result) {
       stack.push(value);
     } else if (value instanceof Request) {
       stack.push(i);
-      let box = [];
-      return {
-        blocked: [{ request: value, box }],
-        next: () => step(stack, box[0]),
-      };
+      const r = handleRequest(cache, stack, value);
+      if ("done" in r) {
+        result = r.done;
+      } else {
+        return r;
+      }
     } else if (value instanceof Array) {
       stack.push(i);
-      let result2 = [];
+      const result2 = [];
       for (const v of value) {
-        result2.push(step([v]));
+        result2.push(step(cache, [v]));
       }
       if (result2.every(r => "done" in r)) {
         result = result2.map(r => r.done);
@@ -46,7 +71,7 @@ function step(stack, result) {
               }
             }
             if (result2.every(r => "done" in r)) {
-              return step(stack, result2.map(r => r.done));
+              return step(cache, stack, result2.map(r => r.done));
             } else {
               const blocked = result2
                 .filter(r => "blocked" in r)
@@ -79,7 +104,7 @@ function runFetch(g, fetch) {
     }
   }
 
-  return go(() => step([g()]));
+  return go(() => step(new HashMap(), [g()]));
 }
 
 module.exports = {
