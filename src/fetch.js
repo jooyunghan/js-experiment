@@ -5,63 +5,84 @@ function Request(request) {
   return Object.setPrototypeOf(request, Request.prototype);
 }
 
+/**
+ * @typedef {{request: any, box: any[]}} BlockedRequest
+ * @typedef {{done: any}|{blocked: BlockedRequest[], next: ()=>any}} Result
+ *
+ * @param {HashMap} cache
+ * @param {any[]} stack
+ * @param {*} result
+ * @returns {Result}
+ */
 function step(cache, stack, result) {
   while (stack.length > 0) {
-    const i = stack.pop();
-    if (i instanceof Request) {
-      if (cache.has(i)) {
-        const box = cache.get(i);
+    const top = stack.pop();
+    if (top instanceof Request) {
+      if (cache.has(top)) {
+        const box = cache.get(top);
         if (box.length > 0) {
           result = box[0];
-          continue;
+        } else {
+          return {
+            blocked: [],
+            next: () => step(cache, stack, box[0]),
+          };
         }
+      } else {
+        const box = [];
+        cache.put(top, box);
         return {
-          blocked: [],
+          blocked: [{ request: top, box }],
           next: () => step(cache, stack, box[0]),
         };
       }
-      const box = [];
-      cache.put(i, box);
-      return {
-        blocked: [{ request: i, box }],
-        next: () => step(cache, stack, box[0]),
-      };
-    } else if (i instanceof Array) {
-      const arrayResult = i.map(v => step(cache, [v]));
+    } else if (Array.isArray(top)) {
+      // Here comes "concurrency"
+      // The array should contains 'executable's only
+      const arrayResult = top.map(v => step(cache, [v]));
       if (arrayResult.every(r => "done" in r)) {
         result = arrayResult.map(r => r.done);
-        continue;
-      }
-      return {
-        blocked: arrayResult.flatMap(br => br.blocked || []),
-        next: function next() {
-          for (let i in arrayResult) {
-            if ("blocked" in arrayResult[i]) {
-              arrayResult[i] = arrayResult[i].next();
+      } else {
+        return {
+          blocked: arrayResult.flatMap(br => br.blocked || []),
+          next: function next() {
+            // For every 'blocked' operation, proceed it to next
+            for (let i in arrayResult) {
+              if ("blocked" in arrayResult[i]) {
+                arrayResult[i] = arrayResult[i].next();
+              }
             }
-          }
-          if (arrayResult.every(r => "done" in r)) {
-            return step(cache, stack, arrayResult.map(r => r.done));
-          }
-          return {
-            blocked: arrayResult.flatMap(br => br.blocked || []),
-            next: next,
-          };
-        },
-      };
-    } else if (typeof i.next === "function") {
-      const { value, done } = i.next(result);
+            if (arrayResult.every(r => "done" in r)) {
+              return step(cache, stack, arrayResult.map(r => r.done));
+            } else {
+              return {
+                blocked: arrayResult.flatMap(br => br.blocked || []),
+                next: next,
+              };
+            }
+          },
+        };
+      }
+    } else if (typeof top.next === "function") {
+      const { value, done } = top.next(result);
       if (done) {
         result = value;
       } else {
-        stack.push(i);
+        stack.push(top);
         stack.push(value);
       }
+    } else {
+      throw new Error("Can't handle: " + top);
     }
   }
   return { done: result };
 }
 
+/**
+ * @param {GeneratorFunction} g
+ * @param {(requests: BlockedRequest[]) => Promise} fetch
+ * @returns {Promise}
+ */
 function runFetch(g, fetch) {
   let round = 1;
 
