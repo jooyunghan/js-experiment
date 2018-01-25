@@ -15,7 +15,7 @@ function* leftPane() {
 
 function* mainPane() {
   const posts = yield getAllPostsInfo();
-  posts.sort((a, b) => a.postDate - b.postDate);
+  posts.sort((a, b) => b.postDate - a.postDate);
   const ordered = posts.slice(0, 5);
   const content = yield ordered.map(p => api.getPostContent(p.id));
   return renderPosts(zip(ordered, content));
@@ -124,6 +124,6 @@ function process(requests) {
   return Promise.resolve();
 }
 
-runFetch(blogExample, process).then(x =>
-  console.log(JSON.stringify(x, null, 2))
+runFetch(blogExample, process).then(
+  x => {} // console.log(JSON.stringify(x, null, 2))
 );
