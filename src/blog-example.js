@@ -1,7 +1,7 @@
 const counter = require("./counter");
 const zip = require("./zip");
-const {runFetch} = require('./fetch');
-const api = require("./blog-api")
+const { runFetch } = require("./fetch");
+const api = require("./blog-api");
 
 function* blogExample() {
   const [left, main] = yield [leftPane(), mainPane()];

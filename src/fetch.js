@@ -2,11 +2,12 @@ const HashMap = require("./HashMap");
 require("./Array.flatMap");
 
 function Request(request) {
-  return Object.setPrototypeOf(request, Request.prototype);
+  if (!(this instanceof Request)) return new Request(request);
+  this.request = request;
 }
 
 /**
- * @typedef {{request: any, box: any[]}} BlockedRequest
+ * @typedef {{request: Request, box: any[]}} BlockedRequest
  * @typedef {{done: any}|{blocked: BlockedRequest[], next: ()=>any}} Result
  *
  * @param {HashMap} cache
@@ -18,8 +19,9 @@ function step(cache, stack, result) {
   while (stack.length > 0) {
     const top = stack.pop();
     if (top instanceof Request) {
-      if (cache.has(top)) {
-        const box = cache.get(top);
+      const { request } = top;
+      if (cache.has(request)) {
+        const box = cache.get(request);
         if (box.length > 0) {
           result = box[0];
         } else {
@@ -30,9 +32,9 @@ function step(cache, stack, result) {
         }
       } else {
         const box = [];
-        cache.put(top, box);
+        cache.put(request, box);
         return {
-          blocked: [{ request: top, box }],
+          blocked: [{ request, box }],
           next: () => step(cache, stack, box[0]),
         };
       }
